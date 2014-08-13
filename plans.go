@@ -14,13 +14,13 @@ func GetPlan(name string) Plan {
 		return Plan{20}
 	case "crane", "yanari":
 		return Plan{60}
-	case "kappa":
+	case "kappa", "0":
 		return Plan{120}
 	case "ronin", "tengu", "fugu":
 		return Plan{200}
-	case "ika":
+	case "ika", "2":
 		return Plan{400}
-	case "zilla", "baku", "mecha", "ryu":
+	case "zilla", "baku", "mecha", "ryu", "4"," 6", "7":
 		return Plan{500}
 	}
 	return Plan{}
