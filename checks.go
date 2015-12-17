@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"log"
@@ -20,7 +21,7 @@ func CheckSql(connstring string, plan Plan) ([]Check, error) {
 	}
 	defer db.Close()
 
-	v := make([]Check, 7)
+	v := make([]Check, 8)
 	v[0] = connCountCheck(db, plan.ConnectionLimit)
 	v[1] = longQueriesCheck(db)
 	v[2] = idleQueriesCheck(db)
@@ -28,6 +29,7 @@ func CheckSql(connstring string, plan Plan) ([]Check, error) {
 	v[4] = bloatCheck(db)
 	v[5] = hitRateCheck(db)
 	v[6] = blockingCheck(db)
+	v[7] = seqCheck(db)
 	return v, nil
 }
 
@@ -232,6 +234,50 @@ func blockingStatus(results []blockingResult) string {
 	}
 }
 
+type sequenceResult struct {
+	Col string  `json:"column"`
+	Seq string  `json:"sequence"`
+	Pct float64 `json:"percent_used"`
+}
+
+func seqCheck(db *sqlx.DB) Check {
+	yellowCutoff := 75.0
+	checkTitle := "Sequences"
+	var tmpSeqs []sequenceResult
+	var retSeqs []sequenceResult
+
+	err := db.Select(&tmpSeqs, seqsOnInt4SQL)
+	if err != nil {
+		return makeErrorCheck(checkTitle, err)
+	}
+
+	sql := `select round((last_value::float / pow(2, 31))::numeric * 100, 2) as pct from %s`
+	maxPct := 0.0
+	for _, seq := range tmpSeqs {
+		err = db.Get(&seq, fmt.Sprintf(sql, seq.Seq))
+		if err != nil {
+			log.Printf(err.Error())
+		}
+		if seq.Pct > yellowCutoff {
+			retSeqs = append(retSeqs, seq)
+			if seq.Pct > maxPct {
+				maxPct = seq.Pct
+			}
+		}
+	}
+
+	var status string
+	if maxPct >= 90.0 {
+		status = "red"
+	} else if maxPct >= yellowCutoff {
+		status = "yellow"
+	} else {
+		status = "green"
+	}
+
+	return Check{checkTitle, status, retSeqs}
+}
+
 const (
 	longQueriesSQL = `
 	  SELECT pid, now()-query_start as duration, query
@@ -429,4 +475,14 @@ SELECT * FROM combined WHERE ratio < 0.99
   ON bl.transactionid = kl.transactionid AND bl.pid != kl.pid
   WHERE NOT bl.granted
 			;`
+
+	seqsOnInt4SQL = `
+	SELECT ns.nspname||'.'||c.relname||'('||attname||')' as col, ns.nspname||'.'||s.relname as seq
+	FROM pg_attribute a
+	INNER JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+	INNER JOIN pg_class s ON s.relkind = 'S' AND s.relname = regexp_replace(d.adsrc, $s$nextval\('(.*)'::regclass\)$$s$, '\1')
+	INNER JOIN pg_class c ON c.oid = a.attrelid
+	INNER JOIN pg_namespace ns ON ns.oid = c.relnamespace
+	WHERE atttypid = 'int4'::regtype
+	;`
 )
