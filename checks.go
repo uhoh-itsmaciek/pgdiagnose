@@ -477,7 +477,8 @@ SELECT * FROM combined WHERE ratio < 0.99
 			;`
 
 	seqsOnInt4SQL = `
-	SELECT ns.nspname||'.'||c.relname||'('||attname||')' as col, ns.nspname||'.'||s.relname as seq
+	SELECT quote_ident(ns.nspname)||'.'||quote_ident(c.relname)||'('||quote_ident(attname)||')' as col,
+          quote_ident(ns.nspname)||'.'||quote_ident(s.relname) as seq
 	FROM pg_attribute a
 	INNER JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
 	INNER JOIN pg_class s ON s.relkind = 'S' AND s.relname = regexp_replace(d.adsrc, $s$nextval\('"?(.*?)"?'::regclass\)$$s$, '\1')
