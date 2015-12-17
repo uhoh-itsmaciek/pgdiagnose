@@ -480,7 +480,7 @@ SELECT * FROM combined WHERE ratio < 0.99
 	SELECT ns.nspname||'.'||c.relname||'('||attname||')' as col, ns.nspname||'.'||s.relname as seq
 	FROM pg_attribute a
 	INNER JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
-	INNER JOIN pg_class s ON s.relkind = 'S' AND s.relname = regexp_replace(d.adsrc, $s$nextval\('(.*)'::regclass\)$$s$, '\1')
+	INNER JOIN pg_class s ON s.relkind = 'S' AND s.relname = regexp_replace(d.adsrc, $s$nextval\('"?(.*?)"?'::regclass\)$$s$, '\1')
 	INNER JOIN pg_class c ON c.oid = a.attrelid
 	INNER JOIN pg_namespace ns ON ns.oid = c.relnamespace
 	WHERE atttypid = 'int4'::regtype
