@@ -11,6 +11,7 @@
 * load higher than number of cores for plan
 * connections near plan limit or high for other plans
 * dataset + connections * 5b > plan memory
+* int4 columns with sequences near intmax
 
 ## api
 
