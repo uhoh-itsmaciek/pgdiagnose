@@ -20,7 +20,7 @@ func GetPlan(name string) Plan {
 		return Plan{200}
 	case "ika", "2":
 		return Plan{400}
-	case "zilla", "baku", "mecha", "ryu", "4"," 6", "7":
+	case "zilla", "baku", "mecha", "ryu", "4", "5", "6", "7":
 		return Plan{500}
 	}
 	return Plan{}
